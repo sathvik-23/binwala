@@ -2310,7 +2310,7 @@ main {
     opacity 1s var(--ease),
     transform 1s var(--ease);
 }
-.network-panel.is-in {
+.network-panel[data-in] {
   opacity: 1;
 }
 .network-panel .section-label {
@@ -3165,7 +3165,7 @@ main {
     opacity 1.1s var(--ease),
     translate 1.1s var(--ease);
 }
-[data-reveal].is-in {
+[data-reveal][data-in] {
   opacity: 1;
   translate: 0 0;
 }

@@ -30,14 +30,14 @@ export default function Experience() {
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            e.target.classList.add("is-in");
+            e.target.setAttribute("data-in", "");
             io.unobserve(e.target);
           }
         }
       },
       { rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
     );
-    const observe = () => document.querySelectorAll("[data-reveal]:not(.is-in)").forEach((el) => io.observe(el));
+    const observe = () => document.querySelectorAll("[data-reveal]:not([data-in])").forEach((el) => io.observe(el));
     observe();
     const mo = new MutationObserver(observe);
     mo.observe(document.body, { childList: true, subtree: true });
