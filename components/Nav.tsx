@@ -70,7 +70,9 @@ export default function Nav() {
           </button>
         ) : (
           <button className="btn btn--sm btn--lime magnetic" onClick={() => goToSignup()}>
-            Join<span className="hide-sm">&nbsp;the waitlist</span>
+            <span>
+              Join<span className="hide-sm"> the waitlist</span>
+            </span>
           </button>
         )}
       </div>
