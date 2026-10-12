@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: binwala
+      POSTGRES_PASSWORD: binwala
+      POSTGRES_DB: binwala
+    ports: ["5432:5432"]
+    volumes:
+      - binwala-pg:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+volumes:
+  binwala-pg:
