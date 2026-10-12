@@ -426,6 +426,15 @@ export class CityScene {
   private fpsSamples: number[] = [];
   private degraded = false;
   private bloomBase = 1;
+  private skyMat!: THREE.ShaderMaterial;
+  private pin!: THREE.Group;
+  private pinBeam!: THREE.ShaderMaterial;
+  private pinRing!: THREE.ShaderMaterial;
+  private pinKey = "";
+  private pinDrop = 0;
+  private pinPos = new THREE.Vector2();
+  private fogTarget = new THREE.Color("#070908");
+  private horizonTarget = new THREE.Color("#0d120f");
 
   constructor(private canvas: HTMLCanvasElement, opts: CityOptions) {
     this.opts = opts;
@@ -464,6 +473,7 @@ export class CityScene {
     this.buildBeacons();
     this.buildHubs();
     this.buildDust();
+    this.buildPin();
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -510,6 +520,7 @@ export class CityScene {
       side: THREE.BackSide,
       depthWrite: false,
     });
+    this.skyMat = mat;
     const sky = new THREE.Mesh(geo, mat);
     sky.renderOrder = -10;
     sky.frustumCulled = false;
@@ -795,6 +806,88 @@ export class CityScene {
     this.scene.add(this.dust);
   }
 
+  /** The signup pin: a white-hot beam + target rings that drop on the person's building. */
+  private buildPin() {
+    this.pin = new THREE.Group();
+    const beamGeo = new THREE.CylinderGeometry(0.08, 0.32, 1, 20, 1, true);
+    beamGeo.translate(0, 0.5, 0);
+    this.pinBeam = new THREE.ShaderMaterial({
+      vertexShader: beamVert,
+      fragmentShader: beamFrag,
+      uniforms: {
+        uColor: { value: new THREE.Color("#f4ffd9") },
+        uPower: { value: 1.6 },
+        uTime: this.sharedUniforms.uTime,
+        uPhase: { value: 0 },
+        uCamPos: this.sharedUniforms.uCamPos,
+      },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const beam = new THREE.Mesh(beamGeo, this.pinBeam);
+    beam.scale.set(1, 26, 1);
+    this.pin.add(beam);
+    const ringGeo = new THREE.PlaneGeometry(1, 1);
+    ringGeo.rotateX(-Math.PI / 2);
+    this.pinRing = new THREE.ShaderMaterial({
+      vertexShader: ringVert,
+      fragmentShader: ringFrag,
+      uniforms: { uColor: { value: new THREE.Color("#C8FF2E").multiplyScalar(1.4) }, uTime: this.sharedUniforms.uTime, uPhase: { value: 0 }, uPower: { value: 1.4 } },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const ring = new THREE.Mesh(ringGeo, this.pinRing);
+    ring.position.y = 0.1;
+    ring.scale.setScalar(7);
+    this.pin.add(ring);
+    this.pin.visible = false;
+    this.scene.add(this.pin);
+  }
+
+  private static MOODS: Record<string, { fog: string; horizon: string }> = {
+    none: { fog: "#070908", horizon: "#0d120f" },
+    morning: { fog: "#0c1114", horizon: "#3b3121" },
+    afternoon: { fog: "#10150f", horizon: "#2b3a1f" },
+    evening: { fog: "#130c08", horizon: "#552612" },
+    midnight: { fog: "#030405", horizon: "#0a1220" },
+  };
+
+  private updateSignup(dt: number) {
+    const s = bus.signup;
+    const mood = CityScene.MOODS[(s.active && s.slot) || "none"] ?? CityScene.MOODS.none;
+    this.fogTarget.set(mood.fog);
+    this.horizonTarget.set(mood.horizon);
+    const k = 1 - Math.exp(-dt * 2.2);
+    const fog = this.sharedUniforms.uFogColor.value as THREE.Color;
+    fog.lerp(this.fogTarget, k);
+    (this.scene.background as THREE.Color).copy(fog);
+    (this.skyMat.uniforms.uHorizon.value as THREE.Color).lerp(this.horizonTarget, k);
+    this.podMat.uniforms.uIntensity.value += ((s.active && s.dumps ? 0.75 + s.dumps * 0.22 : 1) - this.podMat.uniforms.uIntensity.value) * k;
+
+    const key = s.active && s.pin ? `${s.pin.lat.toFixed(5)},${s.pin.lng.toFixed(5)}` : "";
+    if (key !== this.pinKey) {
+      this.pinKey = key;
+      if (s.pin) {
+        this.pinPos.copy(toWorld(s.pin.lat, s.pin.lng));
+        this.pin.position.set(this.pinPos.x, 0, this.pinPos.y);
+        this.pinDrop = 0;
+        bus.pulse = { id: "__pin", at: performance.now() };
+        this.scanOrigin.copy(this.pinPos);
+        this.scanStart = performance.now();
+      }
+    }
+    this.pin.visible = Boolean(key);
+    if (this.pin.visible) {
+      this.pinDrop = Math.min(1, this.pinDrop + dt * 1.4);
+      const e = 1 - Math.pow(1 - this.pinDrop, 3);
+      this.pin.children[0].scale.y = 26 * e;
+      this.pin.children[1].scale.setScalar(4 + e * 4);
+    }
+  }
+
   /* ------------------------------- runtime ------------------------------- */
 
   resize() {
@@ -884,6 +977,20 @@ export class CityScene {
       pos.x += orbit + px * 1.5 * (1 - p * 0.6);
       pos.z += py * 1.5 * (1 - p * 0.6);
       this.camera.fov = 38;
+    } else if (mode === "signup") {
+      const narrow = aspect < 0.8;
+      const focus = bus.signup.pin ? this.pinPos : HSR;
+      const close = bus.signup.pin ? 1 : 0;
+      const a = 0.35 + t * 0.035 * rm + px * 0.05;
+      const r = (narrow ? 80 : 58) - close * (narrow ? 26 : 22);
+      pos.set(focus.x + Math.sin(a) * r, (narrow ? 58 : 34) - close * 8 - py * 2, focus.y + Math.cos(a) * r);
+      const right = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a));
+      const toCam = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+      target.set(focus.x, 1.5, focus.y);
+      // keep the subject in the open half of the screen: right on desktop, top on phones
+      if (narrow) target.addScaledVector(toCam, 16);
+      else target.addScaledVector(right, -r * 0.3);
+      this.camera.fov = narrow ? 50 : 38;
     } else {
       const fp = bus.finaleProgress;
       const a = 0.9 + t * 0.03 * rm + fp * 0.6 + px * 0.06;
@@ -938,6 +1045,7 @@ export class CityScene {
     this.sharedUniforms.uScanR.value = since * 26;
     this.sharedUniforms.uScanAmp.value = this.opts.reducedMotion ? 0 : Math.max(0, 1 - since / 6);
 
+    this.updateSignup(dtRaw);
     this.pose(dtRaw);
 
     const net = bus.mode === "network" ? THREE.MathUtils.smoothstep(bus.networkProgress, 0.3, 0.9) : 0;

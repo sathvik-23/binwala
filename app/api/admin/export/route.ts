@@ -20,8 +20,9 @@ export async function GET(req: Request) {
 
   const rows = await store().exportRows();
   const cols = [
-    "id", "created_at", "email", "neighbourhood", "area_name", "resident_type",
-    "community", "household_size", "pain_points", "referral_code", "referred_by", "utm_source", "utm_medium", "utm_campaign",
+    "id", "created_at", "name", "email", "phone", "area_name", "neighbourhood", "flat", "address_title", "address_line",
+    "lat", "lng", "in_hsr", "dumps_per_day", "pickup_slot", "referral_code", "referred_by", "utm_source", "utm_medium",
+    "utm_campaign", "email_status",
   ] as const;
   const lines = [cols.join(",")];
   for (const r of rows) {

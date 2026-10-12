@@ -7,6 +7,12 @@ import { AREA_IDS } from "@/lib/neighbourhoods";
 
 export type Joined = {
   email: string;
+  name: string | null;
+  phone?: string;
+  addressTitle?: string;
+  flat?: string | null;
+  pickupSlot?: string;
+  dumpsPerDay?: number;
   referralCode: string;
   position: number;
   neighbourhood: string;
@@ -29,6 +35,10 @@ type Ctx = {
   utm: { source: string | null; medium: string | null; campaign: string | null };
   invitedTo: string | null;
   goToSignup: (neighbourhood?: string) => void;
+  joinOpen: boolean;
+  joinPrefill: { email?: string; neighbourhood?: string };
+  openJoin: (prefill?: { email?: string; neighbourhood?: string }) => void;
+  closeJoin: () => void;
 };
 
 const WaitlistCtx = createContext<Ctx | null>(null);
@@ -39,6 +49,8 @@ export function WaitlistProvider({ initialStats, children }: { initialStats: Sta
   const [neighbourhood, setNeighbourhoodState] = useState("");
   const [joined, setJoined] = useState<Joined | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [joinPrefill, setJoinPrefill] = useState<{ email?: string; neighbourhood?: string }>({});
   const [ref, setRef] = useState<string | null>(null);
   const [invitedTo, setInvitedTo] = useState<string | null>(null);
   const [utm, setUtm] = useState<Ctx["utm"]>({ source: null, medium: null, campaign: null });
@@ -104,21 +116,20 @@ export function WaitlistProvider({ initialStats, children }: { initialStats: Sta
         list.sort((a, b) => b.count - a.count);
         setStats({ ...s, total: Math.max(s.total + 1, j.position), neighbourhoods: list });
       }
+      setJoinOpen(false);
       setSuccessOpen(true);
       setTimeout(refreshStats, 1500);
     },
     [refreshStats],
   );
 
-  const goToSignup = useCallback((n?: string) => {
-    if (n) setNeighbourhoodState(n);
-    const el = document.getElementById("join");
-    if (!el) return;
-    const lenis = (window as unknown as { __lenis?: { scrollTo: (t: Element, o?: object) => void } }).__lenis;
-    if (lenis) lenis.scrollTo(el, { offset: -40, duration: 1.6 });
-    else el.scrollIntoView({ behavior: "smooth", block: "start" });
-    setTimeout(() => (document.getElementById("join-email") as HTMLInputElement | null)?.focus({ preventScroll: true }), 1300);
+  const openJoin = useCallback((prefill: { email?: string; neighbourhood?: string } = {}) => {
+    setJoinPrefill(prefill);
+    if (prefill.neighbourhood) setNeighbourhoodState(prefill.neighbourhood);
+    setJoinOpen(true);
   }, []);
+  const closeJoin = useCallback(() => setJoinOpen(false), []);
+  const goToSignup = useCallback((n?: string) => openJoin(n ? { neighbourhood: n } : {}), [openJoin]);
 
   const value = useMemo<Ctx>(
     () => ({
@@ -134,8 +145,12 @@ export function WaitlistProvider({ initialStats, children }: { initialStats: Sta
       utm,
       invitedTo,
       goToSignup,
+      joinOpen,
+      joinPrefill,
+      openJoin,
+      closeJoin,
     }),
-    [stats, refreshStats, neighbourhood, joined, completeSignup, successOpen, ref, utm, invitedTo, goToSignup],
+    [stats, refreshStats, neighbourhood, joined, completeSignup, successOpen, ref, utm, invitedTo, goToSignup, joinOpen, joinPrefill, openJoin, closeJoin],
   );
 
   return <WaitlistCtx.Provider value={value}>{children}</WaitlistCtx.Provider>;

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 const ALLOWED = new Set([
   "page_view", "hero_cta_focus", "form_start", "signup_success", "signup_error",
   "share_whatsapp", "share_copy", "share_x", "share_native", "profile_saved",
-  "map_select", "section_view", "faq_open",
+  "map_select", "section_view", "faq_open", "join_open", "join_step", "join_location",
 ]);
 
 const Body = z.object({

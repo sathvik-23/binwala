@@ -18,7 +18,7 @@ const QA = [
   },
   {
     q: "What happens to my data?",
-    a: "We use your email and neighbourhood to plan the pilot and tell you when we launch. We never sell your data. Every email has a one-click unsubscribe.",
+    a: "Your name, phone, address and pickup preferences are used only to plan routes in HSR and to contact you about Binwala. They're stored securely, never sold, and you can ask us to delete them any time by replying to any of our emails.",
   },
 ];
 

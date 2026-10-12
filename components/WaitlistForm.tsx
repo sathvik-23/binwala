@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import NeighbourhoodPicker from "./NeighbourhoodPicker";
+import { useRef, useState } from "react";
 import { useWaitlist } from "./WaitlistContext";
 import { areaLabel } from "@/lib/neighbourhoods";
 import { track } from "@/lib/track";
@@ -9,18 +8,13 @@ import { fmt } from "@/lib/format";
 
 type Props = { variant: "hero" | "final"; idPrefix: string };
 
+/** The page-level entry point: one field, then the full join flow takes over. */
 export default function WaitlistForm({ variant, idPrefix }: Props) {
-  const { neighbourhood, setNeighbourhood, completeSignup, ref, utm, joined, setSuccessOpen } = useWaitlist();
+  const { openJoin, joined, setSuccessOpen, neighbourhood } = useWaitlist();
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [error, setError] = useState<{ msg: string; field?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(0);
   const started = useRef(false);
-  const honey = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (error) setShake((s) => s + 1);
-  }, [error]);
 
   if (joined) {
     return (
@@ -38,89 +32,51 @@ export default function WaitlistForm({ variant, idPrefix }: Props) {
     );
   }
 
-  const onFirstInput = () => {
-    if (started.current) return;
-    started.current = true;
-    track("form_start", { variant });
-  };
-
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (status === "loading") return;
+    const v = email.trim();
+    if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) {
+      setError("That email doesn't look right.");
+      setShake((s) => s + 1);
+      return;
+    }
     setError(null);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
-      setError({ msg: "Enter a valid email so we can reach you.", field: "email" });
-      return;
-    }
-    if (!neighbourhood) {
-      setError({ msg: "Pick your HSR sector so we can plan routes street by street.", field: "neighbourhood" });
-      return;
-    }
-    setStatus("loading");
-    try {
-      const r = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          neighbourhood,
-          ref,
-          utm,
-          company: honey.current?.value || undefined,
-        }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setStatus("error");
-        setError({ msg: data.error ?? "Something went wrong. Try again?", field: data.field });
-        track("signup_error", { variant, status: r.status });
-        return;
-      }
-      track("signup_success", { variant, neighbourhood, referred: Boolean(ref), already: Boolean(data.alreadyJoined) });
-      setStatus("idle");
-      completeSignup({ ...data, email: email.trim(), joinedAt: new Date().toISOString() });
-    } catch {
-      setStatus("error");
-      setError({ msg: "You seem to be offline. Try again in a moment." });
-    }
+    track("join_open", { variant, prefilled: Boolean(v) });
+    openJoin({ email: v || undefined, neighbourhood: neighbourhood || undefined });
   };
 
   return (
-    <form className={`wform wform--${variant}`} onSubmit={submit} noValidate onInput={onFirstInput}>
+    <form className={`wform wform--${variant}`} onSubmit={submit} noValidate>
       <div key={shake} className={`wform-row glass ${shake ? "shake" : ""}`}>
         <label className="sr-only" htmlFor={`${idPrefix}-email`}>
           Email address
         </label>
         <input
           id={`${idPrefix}-email`}
-          className={`wform-email ${error?.field === "email" ? "is-invalid" : ""}`}
+          className={`wform-email ${error ? "is-invalid" : ""}`}
           type="email"
           inputMode="email"
           autoComplete="email"
           placeholder="you@email.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onFocus={() => variant === "hero" && track("hero_cta_focus")}
-          aria-invalid={error?.field === "email"}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (!started.current) {
+              started.current = true;
+              track("form_start", { variant });
+            }
+          }}
+          aria-invalid={Boolean(error)}
           aria-describedby={`${idPrefix}-msg`}
-          required
         />
-        <span className="wform-divider" aria-hidden="true" />
-        <label className="sr-only" htmlFor={`${idPrefix}-hood`}>
-          HSR sector
-        </label>
-        <NeighbourhoodPicker id={`${idPrefix}-hood`} value={neighbourhood} onChange={setNeighbourhood} invalid={error?.field === "neighbourhood"} />
-        <button className={`btn btn--lime wform-submit magnetic ${status === "loading" ? "is-loading" : ""}`} type="submit" disabled={status === "loading"}>
+        <button className="btn btn--lime wform-submit magnetic" type="submit">
           <span className="btn-label">
-            {status === "loading" ? "Securing your spot" : "Join the Waitlist"} <span className="arrow">→</span>
+            Join the Waitlist <span className="arrow">→</span>
           </span>
-          <span className="btn-spinner" aria-hidden="true" />
         </button>
-        <input ref={honey} type="text" name="company" tabIndex={-1} autoComplete="off" className="hp" aria-hidden="true" />
       </div>
-
       <p id={`${idPrefix}-msg`} className={`wform-msg mono ${error ? "is-error" : ""}`} role="status" aria-live="polite">
-        {error ? error.msg : "No spam. Just a cleaner future."}
+        {error ?? "Takes 40 seconds. No spam, ever."}
       </p>
     </form>
   );

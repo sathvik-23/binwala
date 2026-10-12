@@ -28,6 +28,19 @@ npm run dev                    # http://localhost:3000
 
 With no database URL, dev mode stores signups in `.data/dev-store.json`. Production refuses to start without one.
 
+## Welcome email (binwala@perfstaq.com)
+
+Every completed signup gets a branded welcome email with their pass, details and WhatsApp share link. It's sent after the response, so signup never waits on it. Pick one:
+
+- **Resend:** add `perfstaq.com` at resend.com/domains, put the DNS records it shows in perfstaq.com's DNS, then `vercel env add RESEND_API_KEY production`.
+- **SMTP (the actual mailbox):** `vercel env add SMTP_HOST production` (e.g. `smtp.gmail.com`), `SMTP_PORT` `465`, `SMTP_USER` `binwala@perfstaq.com`, `SMTP_PASS` (an app password).
+
+Optional `MAIL_NOTIFY_TO=binwala@perfstaq.com` sends you an alert per signup. Delivery status shows on `/admin`.
+
+## Address search
+
+Instant HSR street/sector/landmark matches come from `lib/hsr.ts` (no network). Building names come from Google Places when `GOOGLE_MAPS_API_KEY` is set, otherwise OpenStreetMap (Photon). Results are restricted to HSR Layout; anything outside is flagged and stored as "outside".
+
 ## What's inside
 
 - **Hero / city** — `lib/city/scene.ts`. Procedural Bengaluru at night where only the HSR Layout launch zone is lit: dashed zone boundary, Binwala pods running inside it, and a beacon whose height grows with live HSR signups. Scroll camera: aerial hero → top-down on HSR (Launch zone section) → orbit at the final CTA. Auto-degrades on slow GPUs, falls back without WebGL, respects reduced motion.

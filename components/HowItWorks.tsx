@@ -198,12 +198,11 @@ const STEPS = [
   },
 ];
 
-const CYCLE_MS = 6500;
+// Each step stays up for roughly the time it takes to read it (~240 wpm + a beat to look at the screen).
+const readMs = (text: string) => 1800 + text.split(/\s+/).length * 250;
 
 export default function HowItWorks() {
   const [active, setActive] = useState(0);
-  const [auto, setAuto] = useState(true);
-  const [paused, setPaused] = useState(false);
   const [visible, setVisible] = useState(false);
   const root = useRef<HTMLElement>(null);
 
@@ -216,15 +215,13 @@ export default function HowItWorks() {
   }, []);
 
   useEffect(() => {
-    if (!auto || paused || !visible) return;
-    const id = setTimeout(() => setActive((a) => (a + 1) % STEPS.length), CYCLE_MS);
+    if (!visible) return;
+    const id = setTimeout(() => setActive((a) => (a + 1) % STEPS.length), readMs(STEPS[active].title + " " + STEPS[active].body));
     return () => clearTimeout(id);
-  }, [active, auto, paused, visible]);
+  }, [active, visible]);
 
-  const choose = (i: number) => {
-    setActive(i);
-    setAuto(false);
-  };
+  // Clicking jumps to a step; the timer restarts from there so it keeps flowing.
+  const choose = (i: number) => setActive(i);
 
   return (
     <section className="system" id="system" data-cover ref={root}>
@@ -238,7 +235,7 @@ export default function HowItWorks() {
             <br />
             <span className="text-dim">Zero guesswork.</span>
           </h2>
-          <div className="steps" role="tablist" aria-label="How Binwala works" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+          <div className="steps" role="tablist" aria-label="How Binwala works">
             {STEPS.map((s, i) => (
               <button
                 key={s.n}
@@ -257,9 +254,9 @@ export default function HowItWorks() {
                   </span>
                 </span>
                 <span
-                  className={`step-tab-bar ${active === i && auto && !paused && visible ? "is-running" : ""}`}
-                  style={{ animationDuration: `${CYCLE_MS}ms` }}
-                  key={`${active}-${auto}-${paused}-${visible}`}
+                  className={`step-tab-bar ${active === i && visible ? "is-running" : ""}`}
+                  style={{ animationDuration: `${readMs(s.title + " " + s.body)}ms` }}
+                  key={`${active}-${visible}`}
                 />
               </button>
             ))}

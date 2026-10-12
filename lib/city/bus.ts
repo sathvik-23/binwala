@@ -5,7 +5,14 @@ export type ScreenPoint = { id: string; x: number; y: number; depth: number; onS
 
 export const bus = {
   /** which transparent section currently owns the canvas */
-  mode: "hero" as "hero" | "network" | "finale" | "hidden",
+  mode: "hero" as "hero" | "network" | "finale" | "signup" | "hidden",
+  /** live state of the join flow: the city follows along */
+  signup: {
+    active: false,
+    pin: null as null | { lat: number; lng: number },
+    slot: null as null | string,
+    dumps: 0,
+  },
   heroProgress: 0, // 0 → hero top, 1 → hero scrolled away
   networkProgress: 0, // 0 → network enters, 1 → leaves
   finaleProgress: 0,

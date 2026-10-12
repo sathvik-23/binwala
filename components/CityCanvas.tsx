@@ -72,8 +72,9 @@ export default function CityCanvas() {
         const r = el.getBoundingClientRect();
         if (r.top <= 0 && r.bottom >= vh) covered = true;
       });
-      const isVisible = best.area > 4 && !covered;
-      bus.mode = isVisible ? best.mode : "hidden";
+      const signup = bus.signup.active;
+      const isVisible = signup || (best.area > 4 && !covered);
+      bus.mode = signup ? "signup" : isVisible ? best.mode : "hidden";
       if (isVisible !== lastVisible) {
         lastVisible = isVisible;
         setVisible(isVisible);
@@ -96,6 +97,7 @@ export default function CityCanvas() {
       bus.pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("binwala:signup", onScroll);
     window.addEventListener("resize", onScroll);
     if (!mobile) window.addEventListener("pointermove", onPointer, { passive: true });
     update();
@@ -103,6 +105,7 @@ export default function CityCanvas() {
     return () => {
       cancelled = true;
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("binwala:signup", onScroll);
       window.removeEventListener("resize", onScroll);
       window.removeEventListener("pointermove", onPointer);
       scene?.dispose();

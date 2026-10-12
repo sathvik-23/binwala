@@ -14,7 +14,7 @@ const LINKS = [
 ];
 
 export default function Nav() {
-  const { stats, joined, goToSignup, setSuccessOpen } = useWaitlist();
+  const { stats, joined, openJoin, setSuccessOpen } = useWaitlist();
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
 
@@ -69,7 +69,7 @@ export default function Nav() {
             Your pass
           </button>
         ) : (
-          <button className="btn btn--sm btn--lime magnetic" onClick={() => goToSignup()}>
+          <button className="btn btn--sm btn--lime magnetic" onClick={() => openJoin()}>
             <span>
               Join<span className="hide-sm"> the waitlist</span>
             </span>

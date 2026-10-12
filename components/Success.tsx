@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useWaitlist, type Joined } from "./WaitlistContext";
 import { Mark } from "./Logo";
 import { CountUp } from "./CountUp";
-import { OUTSIDE, PAIN_POINTS, RESIDENT_TYPES, SECTORS, areaLabel } from "@/lib/neighbourhoods";
+import { OUTSIDE, SECTORS, areaLabel } from "@/lib/neighbourhoods";
+import { SLOTS } from "@/lib/hsr";
 import { fmt } from "@/lib/format";
 import { track } from "@/lib/track";
 
@@ -120,6 +121,7 @@ function PassCard({ j }: { j: Joined }) {
             {j.neighbourhood === OUTSIDE ? "WAITLIST" : `NEIGHBOURHOOD${SECTORS.find((x) => x.id === j.neighbourhood) ? " · " + SECTORS.find((x) => x.id === j.neighbourhood)!.name.toUpperCase() : ""}`}
           </span>
           <div className="pass-hood">{j.neighbourhood === OUTSIDE ? "Early supporter" : "HSR Layout"}</div>
+          {j.name && <div className="pass-holder">{j.name}{j.addressTitle ? <span> · {[j.flat, j.addressTitle].filter(Boolean).join(", ")}</span> : null}</div>}
         </div>
         <div className="pass-grid mono">
           <div>
@@ -131,8 +133,8 @@ function PassCard({ j }: { j: Joined }) {
             <b>{date}</b>
           </div>
           <div>
-            <span>STATUS</span>
-            <b className="text-lime">EARLY ACCESS</b>
+            <span>PICKUP</span>
+            <b className="text-lime">{SLOTS.find((x) => x.id === j.pickupSlot)?.label.toUpperCase() ?? "EARLY ACCESS"}</b>
           </div>
         </div>
         <div className="pass-perf" aria-hidden="true" />
@@ -141,105 +143,6 @@ function PassCard({ j }: { j: Joined }) {
           <span className="mono pass-code">{j.referralCode}</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ------------------------------- profile ------------------------------ */
-
-function Profile({ j }: { j: Joined }) {
-  const [resident, setResident] = useState<string | null>(null);
-  const [community, setCommunity] = useState("");
-  const [size, setSize] = useState<number | null>(null);
-  const [pains, setPains] = useState<string[]>([]);
-  const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
-
-  const save = async () => {
-    setState("saving");
-    try {
-      const r = await fetch("/api/waitlist/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: j.referralCode,
-          email: j.email,
-          residentType: resident,
-          community: community.trim() || null,
-          householdSize: size,
-          painPoints: pains.length ? pains : null,
-        }),
-      });
-      if (!r.ok) throw new Error();
-      setState("done");
-      track("profile_saved", { resident: resident ?? "", pains: pains.length });
-    } catch {
-      setState("error");
-    }
-  };
-
-  if (state === "done")
-    return (
-      <div className="profile profile--done">
-        <span className="check" aria-hidden="true" />
-        <div>
-          <b>Got it. Thank you.</b>
-          <p>This goes straight into how we plan routes and pick the pilot.</p>
-        </div>
-      </div>
-    );
-
-  return (
-    <div className="profile">
-      <div className="profile-head">
-        <span className="mono tag">OPTIONAL · 20 SEC</span>
-        <b>Help us plan your pilot</b>
-      </div>
-      <div className="profile-field">
-        <span className="mono profile-k">I LIVE IN</span>
-        <div className="chips">
-          {RESIDENT_TYPES.map((r) => (
-            <button key={r.id} type="button" className={`chip ${resident === r.id ? "is-on" : ""}`} onClick={() => setResident(resident === r.id ? null : r.id)}>
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="profile-row">
-        <label className="profile-field">
-          <span className="mono profile-k">APARTMENT / COMMUNITY</span>
-          <input className="profile-input" value={community} maxLength={120} onChange={(e) => setCommunity(e.target.value)} placeholder="e.g. Prestige Lakeside" />
-        </label>
-        <div className="profile-field">
-          <span className="mono profile-k">HOUSEHOLD</span>
-          <div className="stepper">
-            <button type="button" aria-label="Fewer people" onClick={() => setSize(Math.max(1, (size ?? 2) - 1))}>
-              −
-            </button>
-            <span className="mono">{size ?? "–"}</span>
-            <button type="button" aria-label="More people" onClick={() => setSize(Math.min(50, (size ?? 1) + 1))}>
-              +
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="profile-field">
-        <span className="mono profile-k">BIGGEST HEADACHES</span>
-        <div className="chips">
-          {PAIN_POINTS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`chip ${pains.includes(p.id) ? "is-on" : ""}`}
-              onClick={() => setPains((x) => (x.includes(p.id) ? x.filter((y) => y !== p.id) : [...x, p.id]))}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <button className="btn btn--ghost profile-save" disabled={state === "saving" || (!resident && !community && !size && !pains.length)} onClick={save}>
-        {state === "saving" ? "Saving…" : state === "error" ? "Try again" : "Save answers"}
-      </button>
     </div>
   );
 }
@@ -336,7 +239,7 @@ export default function Success() {
             <span className="live-dot" /> {joined.alreadyJoined ? "WELCOME BACK" : "YOU'RE IN"}
           </span>
           <h2 id="success-title" className="success-h">
-            {joined.alreadyJoined ? "You're already on the list." : "Welcome to the cleaner city."}
+            {joined.alreadyJoined ? "You're already on the list." : joined.name ? <>Welcome aboard, {joined.name.split(" ")[0]}.</> : "Welcome to the cleaner city."}
           </h2>
           <p className="success-pos">
             You&apos;re <b className="text-lime">#{<CountUp value={joined.position} format={fmt} duration={1.6} />}</b> on the waitlist.
@@ -413,7 +316,20 @@ export default function Success() {
 
         <div className="success-right">
           <PassCard j={joined} />
-          <Profile j={joined} />
+          <div className="next-card">
+            <span className="mono tag">WHAT HAPPENS NEXT</span>
+            <ol>
+              <li>
+                <b>Check your inbox.</b> Your pass is on its way from binwala@perfstaq.com.
+              </li>
+              <li>
+                <b>Share with your building.</b> Every neighbour who joins moves your sector up.
+              </li>
+              <li>
+                <b>We&apos;ll email before day one.</b> Timings and pricing come before any pickup.
+              </li>
+            </ol>
+          </div>
         </div>
       </div>
     </div>

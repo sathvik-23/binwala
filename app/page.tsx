@@ -13,6 +13,7 @@ import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 import Success from "@/components/Success";
+import JoinFlow from "@/components/JoinFlow";
 import Cursor from "@/components/Cursor";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function Home() {
         <FinalCTA />
       </main>
       <Footer />
+      <JoinFlow />
       <Success />
       <Cursor />
       <div className="grain" aria-hidden="true" />
